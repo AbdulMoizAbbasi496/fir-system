@@ -1,0 +1,33 @@
+version: '3.8'
+services:
+  web:
+    build: .
+    ports:
+      - "8090:8501"
+    environment:
+      DB_HOST: mysql
+      DB_USER: root
+      DB_PASSWORD: abdul1234
+      DB_NAME: fir_db
+    depends_on:
+      mysql:
+        condition: service_healthy
+    restart: on-failure
+
+  mysql:
+    image: mysql:8.0
+    environment:
+      MYSQL_ROOT_PASSWORD: abdul1234
+      MYSQL_DATABASE: fir_db
+    volumes:
+      - db_jenkins_data:/var/lib/mysql
+      - ./init.sql:/docker-entrypoint-initdb.d/init.sql
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "localhost", "-pabdul1234"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+    restart: on-failure
+
+volumes:
+  db_jenkins_data:
