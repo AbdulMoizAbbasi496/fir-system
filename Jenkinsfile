@@ -23,7 +23,6 @@ pipeline {
                     sh 'echo "Waiting 90 seconds for MySQL + Streamlit to initialize..."'
                     sh 'sleep 90'
                     sh 'docker compose -f docker-compose.jenkins.yml ps'
-                    sh 'docker compose -f docker-compose.jenkins.yml logs --tail=20'
                 }
             }
         }
@@ -38,27 +37,27 @@ pipeline {
         }
         stage('Run Selenium Tests') {
             steps {
-                dir("${TEST_DIR}") {
-                    sh '''
-                        HOST_BASE=/var/lib/docker/volumes/jenkins-data/_data
-                        CONTAINER_BASE=/var/jenkins_home
-                        CURRENT=$(pwd)
-                        HOST_PATH="${HOST_BASE}${CURRENT#$CONTAINER_BASE}"
-                        echo "Host path: $HOST_PATH"
-                        ls "$HOST_PATH"
-                        docker run --rm \
-                            --network host \
-                            -v "$HOST_PATH":/workspace \
-                            -w /workspace \
-                            markhobson/maven-chrome:jdk-17 \
-                            mvn test -Dapp.url=http://localhost:8090 || true
-                    '''
-                }
+                sh '''
+                    # Copy test files from Jenkins volume to a real host path
+                    rm -rf /tmp/fir-tests
+                    mkdir -p /tmp/fir-tests
+                    docker cp jenkins:/var/jenkins_home/workspace/fir-system-pipeline/fir-selenium-tests/. /tmp/fir-tests/
+                    echo "Files copied to /tmp/fir-tests:"
+                    ls /tmp/fir-tests
+                    docker run --rm \
+                        --network host \
+                        -v /tmp/fir-tests:/workspace \
+                        -w /workspace \
+                        markhobson/maven-chrome:jdk-17 \
+                        mvn test -Dapp.url=http://localhost:8090 || true
+                    # Copy results back to Jenkins workspace
+                    docker cp /tmp/fir-tests/target jenkins:/var/jenkins_home/workspace/fir-system-pipeline/fir-selenium-tests/ || true
+                '''
             }
             post {
                 always {
                     dir("${TEST_DIR}") {
-                        sh 'find . -name "*.xml" 2>/dev/null | head -10'
+                        sh 'find . -name "*.xml" -path "*/surefire*" 2>/dev/null | head -10'
                         junit allowEmptyResults: true,
                               testResults: '**/target/surefire-reports/*.xml'
                     }
