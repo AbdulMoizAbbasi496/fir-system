@@ -12,7 +12,7 @@ pipeline {
             steps {
                 dir("${APP_DIR}") {
                     git branch: 'main',
-                        credentialsId: 'github-creds',
+                        credentialsId: 'github-cred',
                         url: 'https://github.com/AbdulMoizAbbasi496/fir-system.git'
                 }
             }
@@ -21,12 +21,11 @@ pipeline {
         stage('Start App') {
             steps {
                 dir("${APP_DIR}") {
-                    sh 'docker-compose -f docker-compose.jenkins.yml down --remove-orphans || true'
-                    sh 'docker-compose -f docker-compose.jenkins.yml up -d --build'
-                    sh 'echo "Waiting for Streamlit + MySQL to be ready..."'
+                    sh 'docker compose -f docker-compose.jenkins.yml down --remove-orphans || true'
+                    sh 'docker compose -f docker-compose.jenkins.yml up -d --build'
                     sh 'sleep 55'
-                    sh 'docker-compose -f docker-compose.jenkins.yml ps'
-                    sh 'curl -s -o /dev/null -w "App HTTP status: %{http_code}\\n" http://localhost:8090 || true'
+                    sh 'docker compose -f docker-compose.jenkins.yml ps'
+                    sh 'curl -s -o /dev/null -w "App status: %{http_code}\n" http://localhost:8090 || true'
                 }
             }
         }
@@ -35,7 +34,7 @@ pipeline {
             steps {
                 dir("${TEST_DIR}") {
                     git branch: 'main',
-                        credentialsId: 'github-creds',
+                        credentialsId: 'github-cred',
                         url: 'https://github.com/AbdulMoizAbbasi496/fir-selenium-tests.git'
                 }
             }
@@ -66,7 +65,7 @@ pipeline {
         stage('Stop App') {
             steps {
                 dir("${APP_DIR}") {
-                    sh 'docker-compose -f docker-compose.jenkins.yml down'
+                    sh 'docker compose -f docker-compose.jenkins.yml down'
                 }
             }
         }
@@ -82,7 +81,7 @@ pipeline {
 
                 emailext(
                     to: pusherEmail,
-                    subject: "[Jenkins] ${currentBuild.currentResult} — FIR System Pipeline #${env.BUILD_NUMBER}",
+                    subject: "[Jenkins] ${currentBuild.currentResult} — FIR Pipeline #${env.BUILD_NUMBER}",
                     mimeType: 'text/html',
                     body: """
                         <h2 style='color:${currentBuild.currentResult == 'SUCCESS' ? 'green' : 'red'}'>
@@ -98,8 +97,6 @@ pipeline {
                           <tr><td><b>Console Log</b></td>
                               <td><a href='${env.BUILD_URL}console'>Click to View</a></td></tr>
                         </table>
-                        <br><p style='color:grey;font-size:12px'>
-                        Punjab Police FIR System — DevOps Assignment — COMSATS Islamabad</p>
                     """
                 )
             }
