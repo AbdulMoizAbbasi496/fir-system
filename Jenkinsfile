@@ -2,8 +2,8 @@ pipeline {
     agent any
 
     environment {
-        APP_DIR  = '/home/ubuntu/fir-system'
-        TEST_DIR = '/home/ubuntu/fir-selenium-tests'
+        APP_DIR  = 'fir-system'
+        TEST_DIR = 'fir-selenium-tests'
     }
 
     stages {
