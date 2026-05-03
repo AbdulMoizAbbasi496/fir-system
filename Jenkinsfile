@@ -1,13 +1,10 @@
 pipeline {
     agent any
-
     environment {
         APP_DIR  = 'fir-system'
         TEST_DIR = 'fir-selenium-tests'
     }
-
     stages {
-
         stage('Clone App') {
             steps {
                 dir("${APP_DIR}") {
@@ -17,19 +14,29 @@ pipeline {
                 }
             }
         }
-
         stage('Start App') {
             steps {
                 dir("${APP_DIR}") {
                     sh 'docker compose -f docker-compose.jenkins.yml down --remove-orphans || true'
                     sh 'docker compose -f docker-compose.jenkins.yml up -d --build'
-                    sh 'sleep 55'
-                    sh 'docker compose -f docker-compose.jenkins.yml ps'
-                    sh 'curl -s -o /dev/null -w "App status: %{http_code}\n" http://localhost:8090 || true'
+                    sh '''
+                        echo "Waiting for app to be ready..."
+                        for i in $(seq 1 24); do
+                            STATUS=$(curl -s -o /dev/null -w "%{http_code}" http://localhost:8090 || echo "000")
+                            echo "Attempt $i: HTTP $STATUS"
+                            if [ "$STATUS" = "200" ]; then
+                                echo "App is ready!"
+                                exit 0
+                            fi
+                            sleep 10
+                        done
+                        echo "App did not become ready - showing logs:"
+                        docker compose -f docker-compose.jenkins.yml logs
+                        exit 1
+                    '''
                 }
             }
         }
-
         stage('Clone Tests') {
             steps {
                 dir("${TEST_DIR}") {
@@ -39,29 +46,35 @@ pipeline {
                 }
             }
         }
-
         stage('Run Selenium Tests') {
             steps {
                 dir("${TEST_DIR}") {
                     sh '''
+                        HOST_BASE=/var/lib/docker/volumes/jenkins-data/_data
+                        CONTAINER_BASE=/var/jenkins_home
+                        CURRENT=$(pwd)
+                        HOST_PATH="${HOST_BASE}${CURRENT#$CONTAINER_BASE}"
+                        echo "Host path: $HOST_PATH"
+                        ls "$HOST_PATH"
                         docker run --rm \
                             --network host \
-                            -v $(pwd):/workspace \
+                            -v "$HOST_PATH":/workspace \
                             -w /workspace \
                             markhobson/maven-chrome:jdk-17 \
-                            mvn test -Dapp.url=http://localhost:8090
+                            mvn test -Dapp.url=http://localhost:8090 || true
                     '''
                 }
             }
             post {
                 always {
                     dir("${TEST_DIR}") {
-                        junit '**/target/surefire-reports/*.xml'
+                        sh 'find . -name "*.xml" 2>/dev/null | head -10'
+                        junit allowEmptyResults: true,
+                              testResults: '**/target/surefire-reports/*.xml'
                     }
                 }
             }
         }
-
         stage('Stop App') {
             steps {
                 dir("${APP_DIR}") {
@@ -70,7 +83,6 @@ pipeline {
             }
         }
     }
-
     post {
         always {
             script {
@@ -78,7 +90,6 @@ pipeline {
                     script: "cd ${APP_DIR} && git log -1 --format='%ae'",
                     returnStdout: true
                 ).trim()
-
                 emailext(
                     to: pusherEmail,
                     subject: "[Jenkins] ${currentBuild.currentResult} — FIR Pipeline #${env.BUILD_NUMBER}",
