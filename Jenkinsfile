@@ -38,36 +38,39 @@ pipeline {
         stage('Run Selenium Tests') {
             steps {
                 sh '''
-                    # Copy test files from Jenkins volume to a real host path
+                    # Clean and copy test files to real host path
                     rm -rf /tmp/fir-tests
                     mkdir -p /tmp/fir-tests
                     docker cp jenkins:/var/jenkins_home/workspace/fir-system-pipeline/fir-selenium-tests/. /tmp/fir-tests/
-                    echo "Files copied to /tmp/fir-tests:"
-                    ls /tmp/fir-tests
+                    echo "=== Files in /tmp/fir-tests ==="
+                    ls -la /tmp/fir-tests/
+                    echo "=== Running Maven tests ==="
                     docker run --rm \
                         --network host \
                         -v /tmp/fir-tests:/workspace \
                         -w /workspace \
                         markhobson/maven-chrome:jdk-17 \
-                        mvn test -Dapp.url=http://localhost:8090 || true
-                    # Copy results back to Jenkins workspace
-                    docker cp /tmp/fir-tests/target jenkins:/var/jenkins_home/workspace/fir-system-pipeline/fir-selenium-tests/ || true
+                        mvn test -Dapp.url=http://localhost:8090
+                    echo "=== Maven exit code: $? ==="
+                    echo "=== Copying results back ==="
+                    docker cp /tmp/fir-tests/target/surefire-reports \
+                        jenkins:/var/jenkins_home/workspace/fir-system-pipeline/fir-selenium-tests/target/ 2>/dev/null || true
+                    ls /tmp/fir-tests/target/surefire-reports/ 2>/dev/null || echo "No surefire reports found"
                 '''
             }
             post {
                 always {
+                    sh '''
+                        # Copy results back from host to Jenkins container
+                        mkdir -p /tmp/fir-tests/target/surefire-reports
+                        docker cp /tmp/fir-tests/target/surefire-reports \
+                            jenkins:/var/jenkins_home/workspace/fir-system-pipeline/fir-selenium-tests/target/ 2>/dev/null || true
+                    '''
                     dir("${TEST_DIR}") {
-                        sh 'find . -name "*.xml" -path "*/surefire*" 2>/dev/null | head -10'
+                        sh 'find . -name "TEST-*.xml" 2>/dev/null | head -10'
                         junit allowEmptyResults: true,
-                              testResults: '**/target/surefire-reports/*.xml'
+                              testResults: 'target/surefire-reports/TEST-*.xml'
                     }
-                }
-            }
-        }
-        stage('Stop App') {
-            steps {
-                dir("${APP_DIR}") {
-                    sh 'docker compose -f docker-compose.jenkins.yml down'
                 }
             }
         }
@@ -97,6 +100,10 @@ pipeline {
                           <tr><td><b>Console Log</b></td>
                               <td><a href='${env.BUILD_URL}console'>Click to View</a></td></tr>
                         </table>
+                        <br>
+                        <p>App is now live at: 
+                           <a href='http://44.212.91.126:8090'>http://44.212.91.126:8090</a>
+                        </p>
                     """
                 )
             }
