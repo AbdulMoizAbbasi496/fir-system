@@ -21,11 +21,11 @@ pipeline {
         stage('Start App') {
             steps {
                 dir("${APP_DIR}") {
-                    sh 'docker compose -f docker-compose.jenkins.yml down --remove-orphans || true'
-                    sh 'docker compose -f docker-compose.jenkins.yml up -d --build'
+                    sh 'docker-compose -f docker-compose.jenkins.yml down --remove-orphans || true'
+                    sh 'docker-compose -f docker-compose.jenkins.yml up -d --build'
                     sh 'echo "Waiting for Streamlit + MySQL to be ready..."'
                     sh 'sleep 55'
-                    sh 'docker compose -f docker-compose.jenkins.yml ps'
+                    sh 'docker-compose -f docker-compose.jenkins.yml ps'
                     sh 'curl -s -o /dev/null -w "App HTTP status: %{http_code}\\n" http://localhost:8090 || true'
                 }
             }
@@ -66,7 +66,7 @@ pipeline {
         stage('Stop App') {
             steps {
                 dir("${APP_DIR}") {
-                    sh 'docker compose -f docker-compose.jenkins.yml down'
+                    sh 'docker-compose -f docker-compose.jenkins.yml down'
                 }
             }
         }
