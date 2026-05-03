@@ -18,20 +18,23 @@ pipeline {
             steps {
                 dir("${APP_DIR}") {
                     sh 'docker compose -f docker-compose.jenkins.yml down --remove-orphans || true'
+                    sh 'docker volume rm fir-system_db_jenkins_data 2>/dev/null || true'
                     sh 'docker compose -f docker-compose.jenkins.yml up -d --build'
                     sh '''
-                        echo "Waiting for app to be ready..."
-                        for i in $(seq 1 24); do
-                            STATUS=$(curl -s -o /dev/null -w "%{http_code}" http://localhost:8090 || echo "000")
-                            echo "Attempt $i: HTTP $STATUS"
+                        echo "Waiting for app to be ready on 172.17.0.1:8090..."
+                        i=1
+                        while [ $i -le 30 ]; do
+                            STATUS=$(curl -s -o /dev/null -w "%{http_code}" http://172.17.0.1:8090 2>/dev/null)
+                            echo "Attempt $i: HTTP [$STATUS]"
                             if [ "$STATUS" = "200" ]; then
                                 echo "App is ready!"
                                 exit 0
                             fi
+                            i=$((i+1))
                             sleep 10
                         done
-                        echo "App did not become ready - showing logs:"
-                        docker compose -f docker-compose.jenkins.yml logs
+                        echo "App not ready after 5 minutes - dumping logs:"
+                        docker compose -f docker-compose.jenkins.yml logs --tail=50
                         exit 1
                     '''
                 }
@@ -61,7 +64,7 @@ pipeline {
                             -v "$HOST_PATH":/workspace \
                             -w /workspace \
                             markhobson/maven-chrome:jdk-17 \
-                            mvn test -Dapp.url=http://localhost:8090 || true
+                            mvn test -Dapp.url=http://172.17.0.1:8090 || true
                     '''
                 }
             }
