@@ -38,30 +38,34 @@ pipeline {
         stage('Run Selenium Tests') {
             steps {
                 sh '''
-                    # Clean and copy test files to real host path
                     rm -rf /tmp/fir-tests
                     mkdir -p /tmp/fir-tests
+
                     docker cp jenkins:/var/jenkins_home/workspace/fir-system-pipeline/fir-selenium-tests/. /tmp/fir-tests/
+
                     echo "=== Files in /tmp/fir-tests ==="
                     ls -la /tmp/fir-tests/
+
                     echo "=== Running Maven tests ==="
                     docker run --rm \
                         --network host \
                         -v /tmp/fir-tests:/workspace \
                         -w /workspace \
                         markhobson/maven-chrome:jdk-17 \
-                        mvn test -Dapp.url=http://localhost:8090
+                        mvn clean test -Dapp.url=http://localhost:8090
+
                     echo "=== Maven exit code: $? ==="
+
                     echo "=== Copying results back ==="
                     docker cp /tmp/fir-tests/target/surefire-reports \
                         jenkins:/var/jenkins_home/workspace/fir-system-pipeline/fir-selenium-tests/target/ 2>/dev/null || true
+
                     ls /tmp/fir-tests/target/surefire-reports/ 2>/dev/null || echo "No surefire reports found"
                 '''
             }
             post {
                 always {
                     sh '''
-                        # Copy results back from host to Jenkins container
                         mkdir -p /tmp/fir-tests/target/surefire-reports
                         docker cp /tmp/fir-tests/target/surefire-reports \
                             jenkins:/var/jenkins_home/workspace/fir-system-pipeline/fir-selenium-tests/target/ 2>/dev/null || true
@@ -75,6 +79,7 @@ pipeline {
             }
         }
     }
+
     post {
         always {
             script {
@@ -82,6 +87,21 @@ pipeline {
                     script: "cd ${APP_DIR} && git log -1 --format='%ae'",
                     returnStdout: true
                 ).trim()
+
+                // ✅ Extract test summary
+                def report = sh(
+                    script: """
+                        grep -h '<testsuite' ${TEST_DIR}/target/surefire-reports/*.xml 2>/dev/null | \
+                        awk -F'"' '{tests+=\$2; failures+=\$4; errors+=\$6} END {print tests, failures, errors}'
+                    """,
+                    returnStdout: true
+                ).trim()
+
+                def parts = report.tokenize(' ')
+                def total = parts.size() > 0 ? parts[0] : "0"
+                def failed = parts.size() > 1 ? (parts[1].toInteger() + parts[2].toInteger()) : 0
+                def passed = total.toInteger() - failed
+
                 emailext(
                     to: pusherEmail,
                     subject: "[Jenkins] ${currentBuild.currentResult} — FIR Pipeline #${env.BUILD_NUMBER}",
@@ -90,6 +110,16 @@ pipeline {
                         <h2 style='color:${currentBuild.currentResult == 'SUCCESS' ? 'green' : 'red'}'>
                             Pipeline ${currentBuild.currentResult}
                         </h2>
+
+                        <h3>Test Summary</h3>
+                        <table border='1' cellpadding='8' style='border-collapse:collapse'>
+                          <tr><td><b>Total Tests</b></td><td>${total}</td></tr>
+                          <tr><td><b>Passed</b></td><td style='color:green'>${passed}</td></tr>
+                          <tr><td><b>Failed</b></td><td style='color:red'>${failed}</td></tr>
+                        </table>
+
+                        <br>
+
                         <table border='1' cellpadding='8' style='border-collapse:collapse'>
                           <tr><td><b>Job</b></td><td>${env.JOB_NAME}</td></tr>
                           <tr><td><b>Build</b></td><td>#${env.BUILD_NUMBER}</td></tr>
@@ -100,6 +130,7 @@ pipeline {
                           <tr><td><b>Console Log</b></td>
                               <td><a href='${env.BUILD_URL}console'>Click to View</a></td></tr>
                         </table>
+
                         <br>
                         <p>App is now live at: 
                            <a href='http://44.212.91.126:8090'>http://44.212.91.126:8090</a>

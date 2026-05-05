@@ -149,7 +149,7 @@ elif operation == " View All FIRs":
             st.info("No FIR records found.")
 
 # ── UPDATE ────────────────────────────────────────────────────────────────────
-elif operation == " pdate FIR Status":
+elif operation == " Update FIR Status":
     st.subheader(" Update FIR Status")
 
     fir_id     = st.number_input("Enter FIR Record ID", min_value=1, step=1, key="upd_id")
