@@ -2,11 +2,10 @@ pipeline {
     agent any
 
     environment {
-        APP_DIR  = '${WORKSPACE}'
+        APP_DIR = "${WORKSPACE}"
     }
 
     stages {
-
         stage('Clone App') {
             steps {
                 dir("${APP_DIR}") {
@@ -24,47 +23,46 @@ pipeline {
                     sh 'docker volume rm fir-system_db_jenkins_data 2>/dev/null || true'
                     sh 'docker compose -f docker-compose.jenkins.yml up -d --build'
                     sh 'echo "Waiting for services..."'
-sh '''
-until curl -s http://44.212.91.126:8090/ > /dev/null; do
-  echo "Waiting for app..."
-  sleep 5
-done
-'''
+                    sh '''
+                        until curl -s http://44.212.91.126:8090/ > /dev/null; do
+                          echo "Waiting for app..."
+                          sleep 5
+                        done
+                    '''
                     sh 'docker compose -f docker-compose.jenkins.yml ps'
                 }
             }
         }
 
-stage('Run Selenium Tests') {
-    steps {
-        sh '''
-            echo "=== Running Tests ==="
+        stage('Run Selenium Tests') {
+            steps {
+                script {
+                    sh '''
+                        echo "=== Running Tests ==="
 
-            docker run --rm \
-            -v $WORKSPACE/tests:/tests \
-            -w /tests \
-            markhobson/maven-chrome:jdk-17 \
-            mvn -f /tests/pom.xml clean test \
-            -Dapp.url=http://44.212.91.126:8090
+                        docker run --rm \
+                        -v $WORKSPACE/tests:/tests \
+                        -w /tests \
+                        markhobson/maven-chrome:jdk-17 \
+                        mvn -f /tests/pom.xml clean test \
+                        -Dapp.url=http://44.212.91.126:8090
 
-            echo "=== Done ==="
-        '''
+                        echo "=== Done ==="
+                    '''
+                }
+            }
+        }
     }
-}
- 
+
     post {
         always {
-
             dir("${APP_DIR}") {
-
                 script {
-
                     def pusherEmail = sh(
                         script: "git log -1 --format='%ae'",
                         returnStdout: true
                     ).trim()
 
-                    // safer test extraction
                     def report = sh(
                         script: """
                             if ls target/surefire-reports/*.xml 1> /dev/null 2>&1; then
@@ -93,22 +91,22 @@ stage('Run Selenium Tests') {
 
                             <h3>Test Summary</h3>
                             <table border='1' cellpadding='8' style='border-collapse:collapse'>
-                              <tr><td><b>Total Tests</b></td><td>${total}</td></tr>
-                              <tr><td><b>Passed</b></td><td style='color:green'>${passed}</td></tr>
-                              <tr><td><b>Failed</b></td><td style='color:red'>${failed}</td></tr>
+                                <tr><td><b>Total Tests</b></td><td>${total}</td></tr>
+                                <tr><td><b>Passed</b></td><td style='color:green'>${passed}</td></tr>
+                                <tr><td><b>Failed</b></td><td style='color:red'>${failed}</td></tr>
                             </table>
 
                             <br>
 
                             <table border='1' cellpadding='8' style='border-collapse:collapse'>
-                              <tr><td><b>Job</b></td><td>${env.JOB_NAME}</td></tr>
-                              <tr><td><b>Build</b></td><td>#${env.BUILD_NUMBER}</td></tr>
-                              <tr><td><b>Triggered by</b></td><td>${pusherEmail}</td></tr>
-                              <tr><td><b>Duration</b></td><td>${currentBuild.durationString}</td></tr>
-                              <tr><td><b>Test Report</b></td>
-                                  <td><a href='${env.BUILD_URL}testReport/'>Click to View</a></td></tr>
-                              <tr><td><b>Console Log</b></td>
-                                  <td><a href='${env.BUILD_URL}console'>Click to View</a></td></tr>
+                                <tr><td><b>Job</b></td><td>${env.JOB_NAME}</td></tr>
+                                <tr><td><b>Build</b></td><td>#${env.BUILD_NUMBER}</td></tr>
+                                <tr><td><b>Triggered by</b></td><td>${pusherEmail}</td></tr>
+                                <tr><td><b>Duration</b></td><td>${currentBuild.durationString}</td></tr>
+                                <tr><td><b>Test Report</b></td>
+                                    <td><a href='${env.BUILD_URL}testReport/'>Click to View</a></td></tr>
+                                <tr><td><b>Console Log</b></td>
+                                    <td><a href='${env.BUILD_URL}console'>Click to View</a></td></tr>
                             </table>
 
                             <br>
