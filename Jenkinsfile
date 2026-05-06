@@ -1,10 +1,12 @@
 pipeline {
     agent any
+
     environment {
         APP_DIR  = 'fir-system'
-        TEST_DIR = 'fir-selenium-tests'
     }
+
     stages {
+
         stage('Clone App') {
             steps {
                 dir("${APP_DIR}") {
@@ -14,67 +16,41 @@ pipeline {
                 }
             }
         }
+
         stage('Start App') {
             steps {
                 dir("${APP_DIR}") {
                     sh 'docker compose -f docker-compose.jenkins.yml down --remove-orphans || true'
                     sh 'docker volume rm fir-system_db_jenkins_data 2>/dev/null || true'
                     sh 'docker compose -f docker-compose.jenkins.yml up -d --build'
-                    sh 'echo "Waiting 90 seconds for MySQL + Streamlit to initialize..."'
-                    sh 'sleep 90'
+                    sh 'echo "Waiting for services..."'
+until curl -s http://web:8501 > /dev/null; do
+  echo "Waiting for app..."
+  sleep 5
+done
                     sh 'docker compose -f docker-compose.jenkins.yml ps'
                 }
             }
         }
-        stage('Clone Tests') {
-            steps {
-                dir("${TEST_DIR}") {
-                    git branch: 'main',
-                        credentialsId: 'github-cred',
-                        url: 'https://github.com/AbdulMoizAbbasi496/fir-selenium-tests.git'
-                }
-            }
-        }
+
         stage('Run Selenium Tests') {
             steps {
-                sh '''
-                    rm -rf /tmp/fir-tests
-                    mkdir -p /tmp/fir-tests
-
-                    docker cp jenkins:/var/jenkins_home/workspace/fir-system-pipeline/fir-selenium-tests/. /tmp/fir-tests/
-
-                    echo "=== Files in /tmp/fir-tests ==="
-                    ls -la /tmp/fir-tests/
-
-                    echo "=== Running Maven tests ==="
-                    docker run --rm \
-                        --network host \
-                        -v /tmp/fir-tests:/workspace \
-                        -w /workspace \
-                        markhobson/maven-chrome:jdk-17 \
-                        mvn clean test -Dapp.url=http://localhost:8090
-
-                    echo "=== Maven exit code: $? ==="
-
-                    echo "=== Copying results back ==="
-                    docker cp /tmp/fir-tests/target/surefire-reports \
-                        jenkins:/var/jenkins_home/workspace/fir-system-pipeline/fir-selenium-tests/target/ 2>/dev/null || true
-
-                    ls /tmp/fir-tests/target/surefire-reports/ 2>/dev/null || echo "No surefire reports found"
-                '''
-            }
-            post {
-                always {
+                dir("${APP_DIR}") {
                     sh '''
-                        mkdir -p /tmp/fir-tests/target/surefire-reports
-                        docker cp /tmp/fir-tests/target/surefire-reports \
-                            jenkins:/var/jenkins_home/workspace/fir-system-pipeline/fir-selenium-tests/target/ 2>/dev/null || true
+echo "===building tests==="
+docker build -t fir-tests .
+
+echo "===Running Tests==="
+                docker run --rm \
+                --network fir-system_default \
+                -v "$PWD/tests":/tests \
+                -w /tests \
+                markhobson/maven-chrome:jdk-17 \
+                mvn clean test -Dapp.url=http://fir-system-web-1:8501
+
+
+                        echo "=== Test Execution Completed ==="
                     '''
-                    dir("${TEST_DIR}") {
-                        sh 'find . -name "TEST-*.xml" 2>/dev/null | head -10'
-                        junit allowEmptyResults: true,
-                              testResults: 'target/surefire-reports/TEST-*.xml'
-                    }
                 }
             }
         }
@@ -82,61 +58,68 @@ pipeline {
 
     post {
         always {
-            script {
-                def pusherEmail = sh(
-                    script: "cd ${APP_DIR} && git log -1 --format='%ae'",
-                    returnStdout: true
-                ).trim()
 
-                // ✅ Extract test summary
-                def report = sh(
-                    script: """
-                        grep -h '<testsuite' ${TEST_DIR}/target/surefire-reports/*.xml 2>/dev/null | \
-                        awk -F'"' '{tests+=\$2; failures+=\$4; errors+=\$6} END {print tests, failures, errors}'
-                    """,
-                    returnStdout: true
-                ).trim()
+            dir("${APP_DIR}") {
 
-                def parts = report.tokenize(' ')
-                def total = parts.size() > 0 ? parts[0] : "0"
-                def failed = parts.size() > 1 ? (parts[1].toInteger() + parts[2].toInteger()) : 0
-                def passed = total.toInteger() - failed
+                script {
 
-                emailext(
-                    to: pusherEmail,
-                    subject: "[Jenkins] ${currentBuild.currentResult} — FIR Pipeline #${env.BUILD_NUMBER}",
-                    mimeType: 'text/html',
-                    body: """
-                        <h2 style='color:${currentBuild.currentResult == 'SUCCESS' ? 'green' : 'red'}'>
-                            Pipeline ${currentBuild.currentResult}
-                        </h2>
+                    def pusherEmail = sh(
+                        script: "git log -1 --format='%ae'",
+                        returnStdout: true
+                    ).trim()
 
-                        <h3>Test Summary</h3>
-                        <table border='1' cellpadding='8' style='border-collapse:collapse'>
-                          <tr><td><b>Total Tests</b></td><td>${total}</td></tr>
-                          <tr><td><b>Passed</b></td><td style='color:green'>${passed}</td></tr>
-                          <tr><td><b>Failed</b></td><td style='color:red'>${failed}</td></tr>
-                        </table>
+                    // safer test extraction
+                    def report = sh(
+                        script: """
+                            if ls target/surefire-reports/*.xml 1> /dev/null 2>&1; then
+                                grep -h "<testsuite" target/surefire-reports/*.xml | \
+                                awk -F'"' '{tests+=\$2; failures+=\$4; errors+=\$6} END {print tests, failures, errors}'
+                            else
+                                echo "0 0 0"
+                            fi
+                        """,
+                        returnStdout: true
+                    ).trim()
 
-                        <br>
+                    def parts = report.tokenize(' ')
+                    def total = parts[0].toInteger()
+                    def failed = (parts.size() > 2) ? (parts[1].toInteger() + parts[2].toInteger()) : 0
+                    def passed = total - failed
 
-                        <table border='1' cellpadding='8' style='border-collapse:collapse'>
-                          <tr><td><b>Job</b></td><td>${env.JOB_NAME}</td></tr>
-                          <tr><td><b>Build</b></td><td>#${env.BUILD_NUMBER}</td></tr>
-                          <tr><td><b>Triggered by</b></td><td>${pusherEmail}</td></tr>
-                          <tr><td><b>Duration</b></td><td>${currentBuild.durationString}</td></tr>
-                          <tr><td><b>Test Report</b></td>
-                              <td><a href='${env.BUILD_URL}testReport/'>Click to View</a></td></tr>
-                          <tr><td><b>Console Log</b></td>
-                              <td><a href='${env.BUILD_URL}console'>Click to View</a></td></tr>
-                        </table>
+                    emailext(
+                        to: pusherEmail,
+                        subject: "[Jenkins] ${currentBuild.currentResult} — FIR Pipeline #${env.BUILD_NUMBER}",
+                        mimeType: 'text/html',
+                        body: """
+                            <h2 style='color:${currentBuild.currentResult == 'SUCCESS' ? 'green' : 'red'}'>
+                                Pipeline ${currentBuild.currentResult}
+                            </h2>
 
-                        <br>
-                        <p>App is now live at: 
-                           <a href='http://44.212.91.126:8090'>http://44.212.91.126:8090</a>
-                        </p>
-                    """
-                )
+                            <h3>Test Summary</h3>
+                            <table border='1' cellpadding='8' style='border-collapse:collapse'>
+                              <tr><td><b>Total Tests</b></td><td>${total}</td></tr>
+                              <tr><td><b>Passed</b></td><td style='color:green'>${passed}</td></tr>
+                              <tr><td><b>Failed</b></td><td style='color:red'>${failed}</td></tr>
+                            </table>
+
+                            <br>
+
+                            <table border='1' cellpadding='8' style='border-collapse:collapse'>
+                              <tr><td><b>Job</b></td><td>${env.JOB_NAME}</td></tr>
+                              <tr><td><b>Build</b></td><td>#${env.BUILD_NUMBER}</td></tr>
+                              <tr><td><b>Triggered by</b></td><td>${pusherEmail}</td></tr>
+                              <tr><td><b>Duration</b></td><td>${currentBuild.durationString}</td></tr>
+                              <tr><td><b>Test Report</b></td>
+                                  <td><a href='${env.BUILD_URL}testReport/'>Click to View</a></td></tr>
+                              <tr><td><b>Console Log</b></td>
+                                  <td><a href='${env.BUILD_URL}console'>Click to View</a></td></tr>
+                            </table>
+
+                            <br>
+                            <p>App: <a href='http://44.212.91.126:8090'>http://44.212.91.126:8090</a></p>
+                        """
+                    )
+                }
             }
         }
     }
