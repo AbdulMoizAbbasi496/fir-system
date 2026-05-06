@@ -2,7 +2,7 @@ pipeline {
     agent any
 
     environment {
-        APP_DIR  = 'fir-system'
+        APP_DIR  = '${WORKSPACE}'
     }
 
     stages {
@@ -34,13 +34,14 @@ done
                 }
             }
         }
+
 stage('Run Selenium Tests') {
     steps {
         sh '''
             echo "=== Running Tests ==="
 
             docker run --rm \
-            -v /var/jenkins_home/workspace/fir-system-pipeline@2/tests:/tests \
+            -v $WORKSPACE/tests:/tests \
             -w /tests \
             markhobson/maven-chrome:jdk-17 \
             mvn -f /tests/pom.xml clean test \
