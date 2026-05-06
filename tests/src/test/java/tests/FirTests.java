@@ -19,7 +19,7 @@ public class FirTests {
         options.addArguments("--disable-dev-shm-usage");
 
         driver = new ChromeDriver(options);
-        driver.get("http://web:8501"); // Docker service name
+        driver.get("http://44.212.91.126:8090/"); // Docker service name
     }
 
     // 1

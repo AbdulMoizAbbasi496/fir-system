@@ -46,7 +46,7 @@ echo "===Running Tests==="
                 -v "$PWD/tests":/tests \
                 -w /tests \
                 markhobson/maven-chrome:jdk-17 \
-                mvn clean test -Dapp.url=http://fir-system-web-1:8501
+                mvn clean test
 
 
                         echo "=== Test Execution Completed ==="
