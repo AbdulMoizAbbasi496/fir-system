@@ -37,13 +37,13 @@ done
 
         stage('Run Selenium Tests') {
             steps {
-                dir("${WORKSPACE}") {
+                dir("${WORKSPACE}/fir-system-pipeline") {
                     sh '''
 
 echo "===Running Tests==="
                 docker run --rm \
                 --network fir-system_default \
-                -v "$PWD/tests":/tests \
+                -v "$WORKSPACE/fir-system-pipeline/tests":/tests \
                 -w /tests \
                 markhobson/maven-chrome:jdk-17 \
                 mvn clean test
