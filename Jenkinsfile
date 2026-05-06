@@ -24,10 +24,12 @@ pipeline {
                     sh 'docker volume rm fir-system_db_jenkins_data 2>/dev/null || true'
                     sh 'docker compose -f docker-compose.jenkins.yml up -d --build'
                     sh 'echo "Waiting for services..."'
+sh '''
 until curl -s http://web:8501 > /dev/null; do
   echo "Waiting for app..."
   sleep 5
 done
+'''
                     sh 'docker compose -f docker-compose.jenkins.yml ps'
                 }
             }
