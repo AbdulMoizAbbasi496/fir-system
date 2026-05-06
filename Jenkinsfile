@@ -37,7 +37,7 @@ done
 
         stage('Run Selenium Tests') {
             steps {
-                dir("${APP_DIR}") {
+                dir("${WORKSPACE}") {
                     sh '''
 
 echo "===Running Tests==="
