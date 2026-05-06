@@ -34,28 +34,23 @@ done
                 }
             }
         }
+stage('Run Selenium Tests') {
+    steps {
+        sh '''
+            echo "=== Running Tests ==="
 
-        stage('Run Selenium Tests') {
-            steps {
-                dir("${WORKSPACE}") {
-                    sh '''
+            docker run --rm \
+            -v /var/jenkins_home/workspace/fir-system-pipeline@2/tests:/tests \
+            -w /tests \
+            markhobson/maven-chrome:jdk-17 \
+            mvn -f /tests/pom.xml clean test \
+            -Dapp.url=http://44.212.91.126:8090
 
-echo "===Running Tests==="
-                docker run --rm \
-                --network fir-system_default \
-                -v "$WORKSPACE/tests":/tests \
-                -w /tests \
-                markhobson/maven-chrome:jdk-17 \
-                mvn clean test
-
-
-                        echo "=== Test Execution Completed ==="
-                    '''
-                }
-            }
-        }
+            echo "=== Done ==="
+        '''
     }
-
+}
+ 
     post {
         always {
 
