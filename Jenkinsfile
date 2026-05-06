@@ -25,7 +25,7 @@ pipeline {
                     sh 'docker compose -f docker-compose.jenkins.yml up -d --build'
                     sh 'echo "Waiting for services..."'
 sh '''
-until curl -s http://web:8501 > /dev/null; do
+until curl -s http://localhost:8090 > /dev/null; do
   echo "Waiting for app..."
   sleep 5
 done
