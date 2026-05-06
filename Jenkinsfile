@@ -2,7 +2,7 @@ pipeline {
     agent any
 
     environment {
-        APP_DIR = "${WORKSPACE}"
+        APP_DIR = "${WORKSPACE}/fir-system"
     }
 
     stages {
@@ -41,7 +41,7 @@ pipeline {
                         echo "=== Running Tests ==="
 
                         docker run --rm \
-                        -v $WORKSPACE/tests:/tests \
+                        -v $WORKSPACE/fir-system/tests:/tests \
                         -w /tests \
                         markhobson/maven-chrome:jdk-17 \
                         mvn -f /tests/pom.xml clean test \
