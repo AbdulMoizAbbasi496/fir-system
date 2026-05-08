@@ -14,6 +14,9 @@ pipeline {
     stages {
         stage('Clone Repository') {
             steps {
+                // Fix permissions from previous Maven container run as root
+                sh 'docker run --rm --volumes-from $(docker ps --filter "ancestor=jenkins/jenkins:lts-jdk17" --format "{{.ID}}" | head -1) -w ${WORKSPACE} alpine chown -R $(id -u):$(id -g) . || true'
+                
                 git branch: 'main',
                     credentialsId: 'github-cred',
                     url: 'https://github.com/AbdulMoizAbbasi496/fir-system.git'
@@ -23,6 +26,7 @@ pipeline {
         stage('Start Application') {
             steps {
                 sh 'docker compose -f docker-compose.jenkins.yml down --remove-orphans || true'
+                sh 'docker volume rm fir-system_db_jenkins_data 2>/dev/null || true'
 
                 sh 'docker compose -f docker-compose.jenkins.yml up -d --build'
 
@@ -71,6 +75,9 @@ pipeline {
     post {
         always {
             script {
+                // Fix permissions so Jenkins can clean workspace on next build
+                sh 'docker run --rm --volumes-from $(docker ps --filter "ancestor=jenkins/jenkins:lts-jdk17" --format "{{.ID}}" | head -1) -w ${WORKSPACE} alpine chown -R $(id -u):$(id -g) . || true'
+
                 junit testResults: 'tests/target/surefire-reports/*.xml', allowEmptyResults: true
 
                 def pusherEmail = 'unknown@unknown.com'
