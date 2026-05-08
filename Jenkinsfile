@@ -65,32 +65,48 @@ pipeline {
     }
 
     post {
-        always {
+    always {
+        script {
             junit testResults: 'tests/target/surefire-reports/*.xml', allowEmptyResults: true
 
-            script {
-                def pusherEmail = sh(script: "git log -1 --format='%ae'", returnStdout: true).trim()
-                
-                emailext(
-                    to: pusherEmail,
-                    subject: "[Jenkins] ${currentBuild.currentResult} - FIR System #${env.BUILD_NUMBER}",
-                    mimeType: 'text/html',
-                    body: '''
-                        <h2 style="color:${currentBuild.currentResult == 'SUCCESS' ? 'green' : 'red'}">Pipeline ${currentBuild.currentResult}</h2>
-                         <h3>Test Summary</h3>
-                            <table border='1' cellpadding='8' style='border-collapse:collapse'>
-                                <tr><td><b>Total Tests</b></td><td>${total}</td></tr>
-                                <tr><td><b>Passed</b></td><td style='color:green'>${passed}</td></tr>
-                                <tr><td><b>Failed</b></td><td style='color:red'>${failed}</td></tr>
-                            </table>
+            def pusherEmail = sh(script: "git log -1 --format='%ae'", returnStdout: true).trim()
 
-                        <br>
-                        <p><b>Application:</b> <a href="${APP_URL}">${APP_URL}</a></p>
-                        <p><b>Triggered By:</b> ${pusherEmail}</p>
-                        <p><b>Build URL:</b> <a href="${env.BUILD_URL}">${env.BUILD_URL}</a></p>
-                    '''
-                )
+            // Extract test results from JUnit action
+            def testResultAction = currentBuild.rawBuild.getAction(hudson.tasks.junit.TestResultAction)
+
+            def total = 0
+            def failed = 0
+            def passed = 0
+
+            if (testResultAction != null) {
+                total = testResultAction.totalCount
+                failed = testResultAction.failCount
+                passed = testResultAction.totalCount - testResultAction.failCount
             }
+
+            emailext(
+                to: pusherEmail,
+                subject: "[Jenkins] ${currentBuild.currentResult} - FIR System #${env.BUILD_NUMBER}",
+                mimeType: 'text/html',
+                body: """
+                    <h2 style="color:${currentBuild.currentResult == 'SUCCESS' ? 'green' : 'red'}">
+                        Pipeline ${currentBuild.currentResult}
+                    </h2>
+
+                    <h3>Test Summary</h3>
+                    <table border='1' cellpadding='8' style='border-collapse:collapse'>
+                        <tr><td><b>Total Tests</b></td><td>${total}</td></tr>
+                        <tr><td><b>Passed</b></td><td style='color:green'>${passed}</td></tr>
+                        <tr><td><b>Failed</b></td><td style='color:red'>${failed}</td></tr>
+                    </table>
+
+                    <br>
+                    <p><b>Application:</b> <a href="${APP_URL}">${APP_URL}</a></p>
+                    <p><b>Triggered By:</b> ${pusherEmail}</p>
+                    <p><b>Build URL:</b> <a href="${env.BUILD_URL}">${env.BUILD_URL}</a></p>
+                """
+            )
         }
     }
+}
 }
