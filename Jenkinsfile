@@ -14,9 +14,6 @@ pipeline {
     stages {
         stage('Clone Repository') {
             steps {
-                // Fix permissions from previous Maven container run as root
-                sh 'docker run --rm --volumes-from $(docker ps --filter "ancestor=jenkins/jenkins:lts-jdk17" --format "{{.ID}}" | head -1) -w ${WORKSPACE} alpine chown -R $(id -u):$(id -g) . || true'
-                
                 git branch: 'main',
                     credentialsId: 'github-cred',
                     url: 'https://github.com/AbdulMoizAbbasi496/fir-system.git'
@@ -57,15 +54,22 @@ pipeline {
                     JENKINS_CONTAINER=$(docker ps --filter "ancestor=jenkins/jenkins:lts-jdk17" --format "{{.ID}}" | head -1)
                     echo "Jenkins container ID: $JENKINS_CONTAINER"
 
+                    JENKINS_UID=$(id -u)
+                    JENKINS_GID=$(id -g)
+                    echo "Running Maven as UID:GID = $JENKINS_UID:$JENKINS_GID"
+
                     docker run --rm \
                         --network host \
                         --volumes-from $JENKINS_CONTAINER \
+                        --user $JENKINS_UID:$JENKINS_GID \
                         -w ${WORKSPACE}/tests \
                         -e APP_URL=${APP_URL} \
+                        -e MAVEN_CONFIG=/tmp/.m2 \
                         markhobson/maven-chrome:jdk-17 \
                         mvn clean test \
                             -Dapp.url=${APP_URL} \
                             -Dtest=FirTests \
+                            -Duser.home=/tmp \
                             --no-transfer-progress
                 '''
             }
@@ -75,9 +79,6 @@ pipeline {
     post {
         always {
             script {
-                // Fix permissions so Jenkins can clean workspace on next build
-                sh 'docker run --rm --volumes-from $(docker ps --filter "ancestor=jenkins/jenkins:lts-jdk17" --format "{{.ID}}" | head -1) -w ${WORKSPACE} alpine chown -R $(id -u):$(id -g) . || true'
-
                 junit testResults: 'tests/target/surefire-reports/*.xml', allowEmptyResults: true
 
                 def pusherEmail = 'unknown@unknown.com'
