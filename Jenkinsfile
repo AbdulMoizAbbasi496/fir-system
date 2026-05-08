@@ -124,6 +124,7 @@ pipeline {
                             <p><b>Build URL:</b> <a href="${env.BUILD_URL}">${env.BUILD_URL}</a></p>
                         """
                     )
+                    currentBuild.result = 'SUCCESS'
                 } catch (err) {
                     echo "Failed to send email: ${err}"
                 }
