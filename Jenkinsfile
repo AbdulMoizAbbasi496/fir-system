@@ -23,7 +23,6 @@ pipeline {
         stage('Start Application') {
             steps {
                 sh 'docker compose -f docker-compose.jenkins.yml down --remove-orphans || true'
-                sh 'docker volume rm fir-system_db_jenkins_data 2>/dev/null || true'
 
                 sh 'docker compose -f docker-compose.jenkins.yml up -d --build'
 
