@@ -7,6 +7,8 @@ pipeline {
 
     environment {
         APP_URL = "http://44.212.91.126:8090"
+        DOCKER_BUILDKIT = "0"
+        COMPOSE_DOCKER_CLI_BUILD = "0"
     }
 
     stages {
@@ -19,48 +21,52 @@ pipeline {
         }
 
         stage('Start Application') {
-    steps {
-        sh 'DOCKER_BUILDKIT=0 docker compose -f docker-compose.jenkins.yml down --remove-orphans || true'
+            steps {
+                sh 'docker compose -f docker-compose.jenkins.yml down --remove-orphans || true'
+                sh 'docker volume rm fir-system_db_jenkins_data 2>/dev/null || true'
 
-        sh 'DOCKER_BUILDKIT=0 docker compose -f docker-compose.jenkins.yml up -d --build'
+                sh 'docker compose -f docker-compose.jenkins.yml up -d --build'
 
-        sh '''
-            echo "Waiting for Flask app to start..."
-            i=1
-            while [ $i -le 40 ]; do
-                if curl -s --connect-timeout 5 $APP_URL > /dev/null; then
-                    echo "Application is UP at $APP_URL"
-                    exit 0
-                fi
-                echo "Waiting... ($i/40)"
-                i=$((i + 1))
-                sleep 6
-            done
-            echo "App failed to start"
-            exit 1
-        '''
-    }
-}
+                sh '''
+                    echo "Waiting for Flask app to start..."
+                    i=1
+                    while [ $i -le 40 ]; do
+                        if curl -s --connect-timeout 5 $APP_URL > /dev/null; then
+                            echo "Application is UP at $APP_URL"
+                            exit 0
+                        fi
+                        echo "Waiting... ($i/40)"
+                        i=$((i + 1))
+                        sleep 6
+                    done
+                    echo "App failed to start"
+                    exit 1
+                '''
+            }
+        }
 
         stage('Run Selenium Tests') {
-    steps {
-        sh '''
-            echo "=== Running Selenium Tests ==="
-            echo "Target URL: ${APP_URL}"
+            steps {
+                sh '''
+                    echo "=== Running Selenium Tests ==="
+                    echo "Target URL: ${APP_URL}"
 
-            docker run --rm \
-                --network host \
-                -v ${WORKSPACE}/tests:/tests \
-                -w /tests \
-                -e APP_URL=${APP_URL} \
-                markhobson/maven-chrome:jdk-17 \
-                mvn clean test \
-                    -Dapp.url=${APP_URL} \
-                    -Dtest=FirTests \
-                    --no-transfer-progress
-        '''
-    }
-}
+                    JENKINS_CONTAINER=$(docker ps --filter "ancestor=jenkins/jenkins:lts-jdk17" --format "{{.ID}}" | head -1)
+                    echo "Jenkins container ID: $JENKINS_CONTAINER"
+
+                    docker run --rm \
+                        --network host \
+                        --volumes-from $JENKINS_CONTAINER \
+                        -w ${WORKSPACE}/tests \
+                        -e APP_URL=${APP_URL} \
+                        markhobson/maven-chrome:jdk-17 \
+                        mvn clean test \
+                            -Dapp.url=${APP_URL} \
+                            -Dtest=FirTests \
+                            --no-transfer-progress
+                '''
+            }
+        }
     }
 
     post {
