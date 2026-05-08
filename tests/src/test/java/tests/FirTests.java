@@ -3,24 +3,38 @@ package tests;
 import org.openqa.selenium.*;
 import org.openqa.selenium.chrome.ChromeDriver;
 import org.openqa.selenium.chrome.ChromeOptions;
+import org.openqa.selenium.support.ui.WebDriverWait;
+import org.openqa.selenium.support.ui.ExpectedConditions;
 import org.testng.Assert;
 import org.testng.annotations.*;
+import java.time.Duration;
 
 public class FirTests {
 
     WebDriver driver;
+    WebDriverWait wait;
 
     @BeforeClass
     public void setup() {
-
         ChromeOptions options = new ChromeOptions();
         options.addArguments("--headless");
         options.addArguments("--no-sandbox");
         options.addArguments("--disable-dev-shm-usage");
 
         driver = new ChromeDriver(options);
+        wait = new WebDriverWait(driver, Duration.ofSeconds(30));
+
         String appUrl = System.getProperty("app.url", "http://44.212.91.126:8090/");
-        driver.get(appUrl); // Docker service name
+        driver.get(appUrl);
+
+        // Wait for Streamlit to finish rendering
+        // Streamlit adds this class when the app is fully loaded
+        wait.until(ExpectedConditions.presenceOfElementLocated(
+            By.cssSelector(".stApp")
+        ));
+
+        // Extra buffer for dynamic content to render
+        try { Thread.sleep(3000); } catch (InterruptedException e) {}
     }
 
     // 1
