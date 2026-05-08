@@ -44,85 +44,113 @@ public class FirTests {
     // 2
     @Test
     public void testAppContainerLoads() {
-        Assert.assertTrue(driver.getPageSource().contains("stAppViewContainer"));
+        Assert.assertTrue(driver.findElements(
+            By.cssSelector("[data-testid='stAppViewContainer']")
+        ).size() > 0);
     }
 
     // 3
     @Test
     public void testMainTitle() {
-        Assert.assertTrue(driver.getPageSource().contains("FIR Record Management System"));
+        Assert.assertTrue(driver.findElements(
+            By.xpath("//*[contains(text(),'FIR Record Management System')]")
+        ).size() > 0);
     }
 
     // 4
     @Test
     public void testSubtitle() {
-        Assert.assertTrue(driver.getPageSource().contains("Punjab Police"));
+        Assert.assertTrue(driver.findElements(
+            By.xpath("//*[contains(text(),'Punjab Police')]")
+        ).size() > 0);
     }
 
     // 5
     @Test
     public void testSidebarTitle() {
-        Assert.assertTrue(driver.getPageSource().contains("FIR Management"));
+        Assert.assertTrue(driver.findElements(
+            By.xpath("//*[contains(text(),'FIR Management')]")
+        ).size() > 0);
     }
 
     // 6
     @Test
     public void testSidebarDescription() {
-        Assert.assertTrue(driver.getPageSource().contains("Digital FIR Portal"));
+        Assert.assertTrue(driver.findElements(
+            By.xpath("//*[contains(text(),'Digital FIR Portal')]")
+        ).size() > 0);
     }
 
     // 7
     @Test
     public void testOperationSelect() {
-        Assert.assertTrue(driver.getPageSource().contains("Select Operation"));
+        Assert.assertTrue(driver.findElements(
+            By.xpath("//*[contains(text(),'Select Operation')]")
+        ).size() > 0);
     }
 
     // 8
     @Test
     public void testViewFIROption() {
-        Assert.assertTrue(driver.getPageSource().contains("View All FIRs"));
+        Assert.assertTrue(driver.findElements(
+            By.xpath("//*[contains(text(),'View All FIRs')]")
+        ).size() > 0);
     }
 
     // 9
     @Test
     public void testRegisterOption() {
-        Assert.assertTrue(driver.getPageSource().contains("Register New FIR"));
+        Assert.assertTrue(driver.findElements(
+            By.xpath("//*[contains(text(),'Register New FIR')]")
+        ).size() > 0);
     }
 
     // 10
     @Test
     public void testUpdateOption() {
-        Assert.assertTrue(driver.getPageSource().contains("Update FIR Status"));
+        Assert.assertTrue(driver.findElements(
+            By.xpath("//*[contains(text(),'Update FIR Status')]")
+        ).size() > 0);
     }
 
     // 11
     @Test
     public void testDeleteOption() {
-        Assert.assertTrue(driver.getPageSource().contains("Delete FIR Record"));
+        Assert.assertTrue(driver.findElements(
+            By.xpath("//*[contains(text(),'Delete FIR Record')]")
+        ).size() > 0);
     }
 
     // 12
     @Test
     public void testCrimeTypeTheft() {
-        Assert.assertTrue(driver.getPageSource().contains("Theft"));
+        Assert.assertTrue(driver.findElements(
+            By.xpath("//*[contains(text(),'Theft')]")
+        ).size() > 0);
     }
 
     // 13
     @Test
     public void testCrimeTypeRobbery() {
-        Assert.assertTrue(driver.getPageSource().contains("Robbery"));
+        Assert.assertTrue(driver.findElements(
+            By.xpath("//*[contains(text(),'Robbery')]")
+        ).size() > 0);
     }
 
     // 14
     @Test
     public void testCrimeTypeFraud() {
-        Assert.assertTrue(driver.getPageSource().contains("Fraud"));
+        Assert.assertTrue(driver.findElements(
+            By.xpath("//*[contains(text(),'Fraud')]")
+        ).size() > 0);
     }
 
     // 15
     @Test
     public void testFooter() {
-        Assert.assertTrue(driver.getPageSource().contains("Spring 2026"));
+        Assert.assertTrue(driver.findElements(
+            By.xpath("//*[contains(text(),'Spring 2026')]")
+        ).size() > 0);
     }
 
     @AfterClass
