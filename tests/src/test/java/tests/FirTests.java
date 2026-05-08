@@ -20,20 +20,23 @@ public class FirTests {
         options.addArguments("--headless");
         options.addArguments("--no-sandbox");
         options.addArguments("--disable-dev-shm-usage");
+        options.addArguments("--remote-allow-origins=*");
 
         driver = new ChromeDriver(options);
-        wait = new WebDriverWait(driver, Duration.ofSeconds(30));
+        wait = new WebDriverWait(driver, Duration.ofSeconds(60));
 
         String appUrl = System.getProperty("app.url", "http://44.212.91.126:8090/");
         driver.get(appUrl);
 
-        // Wait for Streamlit to finish rendering
-        // Streamlit adds this class when the app is fully loaded
+        // Step 1: wait for Streamlit root element
         wait.until(ExpectedConditions.presenceOfElementLocated(
-            By.cssSelector(".stApp")
+            By.cssSelector("[data-testid='stAppViewContainer']")
         ));
 
-        // Extra buffer for dynamic content to render
+        // Step 2: wait until the page source actually has real content
+        wait.until(driver -> driver.getPageSource().contains("FIR"));
+
+        // Step 3: extra buffer for remaining dynamic content
         try { Thread.sleep(3000); } catch (InterruptedException e) {}
     }
 
@@ -129,6 +132,6 @@ public class FirTests {
 
     @AfterClass
     public void tearDown() {
-        driver.quit();
+        if (driver != null) driver.quit();
     }
 }
