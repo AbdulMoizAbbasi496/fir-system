@@ -43,26 +43,24 @@ pipeline {
 }
 
         stage('Run Selenium Tests') {
-            steps {
-                dir('tests') {
-                    sh '''
-                        echo "=== Running Selenium Tests ==="
-                        echo "Target URL: ${APP_URL}"
+    steps {
+        sh '''
+            echo "=== Running Selenium Tests ==="
+            echo "Target URL: ${APP_URL}"
 
-                        docker run --rm \
-                            --network host \
-                            -v $(pwd):/tests \
-                            -w /tests \
-                            -e APP_URL=${APP_URL} \
-                            markhobson/maven-chrome:jdk-17 \
-                            mvn clean test \
-                                -Dapp.url=${APP_URL} \
-                                -Dtest=FirTests \
-                                --no-transfer-progress
-                    '''
-                }
-            }
-        }
+            docker run --rm \
+                --network host \
+                -v ${WORKSPACE}/tests:/tests \
+                -w /tests \
+                -e APP_URL=${APP_URL} \
+                markhobson/maven-chrome:jdk-17 \
+                mvn clean test \
+                    -Dapp.url=${APP_URL} \
+                    -Dtest=FirTests \
+                    --no-transfer-progress
+        '''
+    }
+}
     }
 
     post {
