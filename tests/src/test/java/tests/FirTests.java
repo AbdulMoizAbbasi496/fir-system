@@ -57,71 +57,61 @@ public class FirTests {
     public void testRegisterFormVisible() {
         Assert.assertTrue(driver.getPageSource().contains("Register New FIR"));
     }
-
     // 4
     @Test
-    public void testCrimeTypesPresent() {
-        Assert.assertTrue(driver.getPageSource().contains("Theft"));
+    public void testOptionValue1() {
+        Assert.assertTrue(driver.getPageSource().contains("View All FIRs"));
     }
-
     // 5
     @Test
-    public void testAddFIRButton() {
-        Assert.assertTrue(driver.getPageSource().contains("Register FIR"));
+    public void testOptionValue2() {
+        Assert.assertTrue(driver.getPageSource().contains("Update FIR Status"));
     }
-
     // 6
     @Test
-    public void testViewSection() {
-        Assert.assertTrue(driver.getPageSource().contains("View All FIRs"));
+    public void testOptionValue3() {
+        Assert.assertTrue(driver.getPageSource().contains("Delete FIR Record"));
     }
 
     // 7
     @Test
-    public void testUpdateSection() {
-        Assert.assertTrue(driver.getPageSource().contains("Update FIR Status"));
+    public void testCrimeTypesPresent() {
+        Assert.assertTrue(driver.getPageSource().contains("Theft"));
     }
-
-    // 8
+    //8
     @Test
-    public void testDeleteSection() {
-        Assert.assertTrue(driver.getPageSource().contains("Delete FIR Record"));
+    public void testCrimeTypesPresent2() {
+        Assert.assertTrue(driver.getPageSource().contains("Roberry"));
     }
-
-    // 9
+    //9
     @Test
-    public void testInputFieldsPresent() {
-        Assert.assertTrue(driver.getPageSource().contains("CNIC"));
+    public void testCrimeTypesPresent3() {
+        Assert.assertTrue(driver.getPageSource().contains("Assault"));
     }
-
-    // 10
+    //10
     @Test
-    public void testOfficerField() {
-        Assert.assertTrue(driver.getPageSource().contains("Officer"));
+    public void testCrimeTypesPresent4() {
+        Assert.assertTrue(driver.getPageSource().contains("Fraud"));
     }
-
-    // 11
+    //11
     @Test
-    public void testLocationField() {
-        Assert.assertTrue(driver.getPageSource().contains("Location"));
-    }
-
-    // 12
-    @Test
-    public void testIncidentDateField() {
-        Assert.assertTrue(driver.getPageSource().contains("Incident Date"));
-    }
-
-    // 13
-    @Test
-    public void testStatusOptions() {
+    public void testFilterStatus1() {
         Assert.assertTrue(driver.getPageSource().contains("Under Investigation"));
     }
-
-    // 14
+    //12
     @Test
-    public void testDatabaseConnectionMessage() {
-        Assert.assertTrue(driver.getPageSource().contains("FIR"));
+    public void testFilterStatus2() {
+        Assert.assertTrue(driver.getPageSource().contains("Challan Submitted"));
+    }
+    //13
+    @Test
+    public void testFilterStatus3() {
+        Assert.assertTrue(driver.getPageSource().contains("Case Closed"));
+    }
+    //14
+    @Test
+    public void footerTest(){
+        Assert.assertTrue(driver.getPageSource().contains("Spring 2026"));
     }
 
     // 15
